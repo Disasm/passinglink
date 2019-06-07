@@ -1,0 +1,6 @@
+[submodule "stm32f103xx-usb"]
+	path = vendor/stm32f103xx-usb
+	url = https://github.com/mvirkkunen/stm32f103xx-usb.git
+[submodule "usb-device"]
+	path = vendor/usb-device
+	url = https://github.com/mvirkkunen/usb-device.git
