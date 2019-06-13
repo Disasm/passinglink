@@ -47,6 +47,8 @@ const APP: () = {
   static mut USB_DEV: UsbDevice<'static, UsbBus> = ();
   static mut USB_HID: hid::HidClass<'static, hid::PS4Hid, UsbBus> = ();
 
+  static mut BUTTON: gpio::gpioa::PA0<gpio::Input<gpio::PullUp>> = ();
+
   #[init(schedule = [timer_tick, input_poll])]
   fn init() {
     static mut USB_BUS: Option<bus::UsbBusAllocator<UsbBus>> = None;
@@ -72,6 +74,8 @@ const APP: () = {
 
     let pin_tx = gpioa.pa2.into_alternate_push_pull(&mut gpioa.crl);
     let pin_rx = gpioa.pa3;
+
+    let pin_button = gpioa.pa0.into_pull_up_input(&mut gpioa.crl);
 
     let serial_config = stm32f1xx_hal::serial::Config {
       baudrate: 921_600.bps(),
@@ -126,9 +130,10 @@ const APP: () = {
     LED = led;
     USB_DEV = usb_dev;
     USB_HID = usb_hid;
+    BUTTON = pin_button;
   }
 
-  #[task(priority = 1, schedule = [input_poll], resources = [USB_DEV, USB_HID])]
+  #[task(priority = 1, schedule = [input_poll], resources = [USB_DEV, USB_HID, BUTTON])]
   fn input_poll() {
     interrupt::free(|_| unsafe {
       static mut COUNTER: u32 = 0;
@@ -147,20 +152,9 @@ const APP: () = {
         INPUTS.button_east.set();
       } else if COUNTER == 4250 {
         INPUTS.button_east.clear();
-      } else if COUNTER > 5000 {
-        let input = COUNTER / 17;
-        INPUTS.hat_dpad = match input % 8 {
-          0 => Hat::North,
-          1 => Hat::NorthEast,
-          2 => Hat::East,
-          3 => Hat::SouthEast,
-          4 => Hat::South,
-          5 => Hat::SouthWest,
-          6 => Hat::West,
-          7 => Hat::NorthWest,
-          _ => unreachable!(),
-        };
       }
+
+      INPUTS.button_south.set_value(resources.BUTTON.is_low());
     });
 
     resources.USB_HID.send();
